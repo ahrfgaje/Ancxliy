@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Frame Animation Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 1000px;
+            margin-top: 30px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #4a6fdc;
+            color: white;
+            font-weight: 600;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #4a6fdc;
+            box-shadow: 0 0 0 0.25rem rgba(74, 111, 220, 0.25);
+        }
+        .btn-primary {
+            background-color: #4a6fdc;
+            border-color: #4a6fdc;
+        }
+        .btn-primary:hover {
+            background-color: #3a5fc7;
+            border-color: #3a5fc7;
+        }
+        .json-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .preview-item {
+            width: 80px;
+            height: 80px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            text-align: center;
+        }
+        .nav-tabs .nav-link.active {
+            font-weight: 600;
+            color: #4a6fdc;
+        }
+        .json-files-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .json-file-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .json-file-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        .json-file-card i {
+            font-size: 2rem;
+            color: #4a6fdc;
+            margin-bottom: 10px;
+        }
+        .json-file-card h6 {
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .json-file-card .btn {
+            width: 100%;
+        }
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .toast {
+            background-color: #4a6fdc;
+            color: white;
+        }
+        .zip-preview {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+        }
+        .zip-preview-item {
+            padding-left: 20px;
+        }
+        .zip-preview-folder {
+            font-weight: bold;
+            color: #4a6fdc;
+        }
+        .download-all-section {
+            background-color: #e9f2ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .download-all-section h5 {
+            margin-bottom: 15px;
+            color: #4a6fdc;
+        }
+        .manifest-info {
+            background-color: #f0f7ff;
+            border-left: 4px solid #4a6fdc;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 0 5px 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">JSON Frame Animation Generator</h4>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-4" id="configTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Pengaturan Dasar</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab" aria-controls="advanced" aria-selected="false">Pengaturan Lanjutan</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="jsonfiles-tab" data-bs-toggle="tab" data-bs-target="#jsonfiles" type="button" role="tab" aria-controls="jsonfiles" aria-selected="false">Struktur ZIP</button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="configTabsContent">
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="frameCount" class="form-label">Jumlah Frame</label>
+                                <input type="number" class="form-control" id="frameCount" min="2" max="100" value="20">
+                                <div class="form-text">Masukkan jumlah frame/foto yang diinginkan (2-100)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="duration" class="form-label">Durasi Per Frame (detik)</label>
+                                <input type="number" class="form-control" id="duration" min="0.01" max="10" step="0.01" value="0.10">
+                                <div class="form-text">Durasi tampil setiap frame</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="imagePrefix" class="form-label">Prefix Nama Gambar</label>
+                                <input type="text" class="form-control" id="imagePrefix" value=background>
+                                <div class="form-text">Prefix untuk nama file gambar (contoh: background)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="imagePath" class="form-label">Path Folder Gambar</label>
+                                <input type="text" class="form-control" id="imagePath" value="textures/ui/bg_anim">
+                                <div class="form-text">Path folder tempat gambar disimpan</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="packName" class="form-label">Nama Pack</label>
+                                <input type="text" class="form-control" id="packName" value="Custom Background Animation">
+                                <div class="form-text">Nama pack untuk manifest.json</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="packVersion" class="form-label">Versi Pack</label>
+                                <input type="text" class="form-control" id="packVersion" value="1.0.0">
+                                <div class="form-text">Versi pack untuk manifest.json</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="advanced" role="tabpanel" aria-labelledby="advanced-tab">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="animationType" class="form-label">Tipe Animasi</label>
+                                <select class="form-select" id="animationType">
+                                    <option value="offset" selected>Offset</option>
+                                    <option value="fade">Fade</option>
+                                    <option value="slide">Slide</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="easingType" class="form-label">Easing Type</label>
+                                <select class="form-select" id="easingType">
+                                    <option value="linear" selected>Linear</option>
+                                    <option value="easeIn">Ease In</option>
+                                    <option value="easeOut">Ease Out</option>
+                                    <option value="easeInOut">Ease In Out</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="namespace" class="form-label">Namespace</label>
+                                <input type="text" class="form-control" id="namespace" value="bgl_animations">
+                                <div class="form-text">Namespace untuk animasi</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="loopAnimation" checked>
+                                    <label class="form-check-label" for="loopAnimation">
+                                        Animasi Berulang (Loop)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="jsonfiles" role="tabpanel" aria-labelledby="jsonfiles-tab">
+                        <h5 class="mb-3">Struktur File ZIP</h5>
+                        <p class="text-muted">File-file JSON dan folder yang akan dihasilkan dalam paket ZIP.</p>
+                        
+                        <div class="json-files-container">
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>manifest.json</h6>
+                                <div class="text-muted small">Informasi pack</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>_ui_defs.json</h6>
+                                <div class="text-muted small">Definisi UI</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>background.json</h6>
+                                <div class="text-muted small">Konfigurasi animasi</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>start_screen.json</h6>
+                                <div class="text-muted small">Layar start</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>settings_common.json</h6>
+                                <div class="text-muted small">Pengaturan umum</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>progress_screen.json</h6>
+                                <div class="text-muted small">Layar progress</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <h6>world_templates_screen.json</h6>
+                                <div class="text-muted small">Layar template dunia</div>
+                            </div>
+                            <div class="json-file-card">
+                                <i class="bi bi-folder"></i>
+                                <h6>textures/ui/bg_anim</h6>
+                                <div class="text-muted small">Folder gambar</div>
+                            </div>
+                        </div>
+                        
+                        <div class="zip-preview mt-4">
+                            <div class="zip-preview-folder">ancxliy.zip</div>
+                            <div class="zip-preview-item">├── manifest.json</div>
+                            <div class="zip-preview-item">└── ui/</div>
+                            <div class="zip-preview-item">    ├── _ui_defs.json</div>
+                            <div class="zip-preview-item">    ├── background.json</div>
+                            <div class="zip-preview-item">    ├── start_screen.json</div>
+                            <div class="zip-preview-item">    ├── settings_common.json</div>
+                            <div class="zip-preview-item">    ├── progress_screen.json</div>
+                            <div class="zip-preview-item">    └── world_templates_screen.json</div>
+                            <div class="zip-preview-item">└── assets/</div>
+                            <div class="zip-preview-item">    └── packframe/</div>
+                            <div class="zip-preview-item">        ├── title1</div>
+                            <div class="zip-preview-item">        ├── title2</div>
+                            <div class="zip-preview-item">        └── ...</div>
+                        </div>
+                        
+                        <div class="manifest-info">
+                            <strong>Catatan:</strong> Folder gambar akan dibuat sesuai dengan path yang Anda tentukan di pengaturan. Anda perlu menambahkan file gambar secara manual setelah mengunduh ZIP.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                    <button class="btn btn-primary me-md-2" type="button" id="generateBtn">Generate JSON</button>
+                    <button class="btn btn-outline-secondary" type="button" id="copyBtn">Salin JSON</button>
+                </div>
+                
+                <div class="download-all-section">
+                    <h5><i class="bi bi-download"></i> Download Semua File</h5>
+                    <p class="mb-3">Unduh semua file JSON sebagai satu paket ZIP dengan struktur folder yang sesuai.</p>
+                    <button class="btn btn-success btn-lg" type="button" id="downloadAllBtn">
+                        <i class="bi bi-file-earmark-zip"></i> Download ZIP
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Hasil JSON</h5>
+            </div>
+            <div class="card-body">
+                <div class="json-output" id="jsonOutput"></div>
+                <div class="preview-container" id="previewContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container">
+        <div id="downloadToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong class="me-auto">Berhasil</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                File ZIP berhasil diunduh!
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const frameCountInput = document.getElementById('frameCount');
+            const durationInput = document.getElementById('duration');
+            const imagePrefixInput = document.getElementById('imagePrefix');
+            const imagePathInput = document.getElementById('imagePath');
+            const packNameInput = document.getElementById('packName');
+            const packVersionInput = document.getElementById('packVersion');
+            const animationTypeSelect = document.getElementById('animationType');
+            const easingTypeSelect = document.getElementById('easingType');
+            const namespaceInput = document.getElementById('namespace');
+            const loopAnimationCheck = document.getElementById('loopAnimation');
+            
+            const generateBtn = document.getElementById('generateBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            const jsonOutput = document.getElementById('jsonOutput');
+            const previewContainer = document.getElementById('previewContainer');
+            
+            // Toast notification
+            const downloadToast = new bootstrap.Toast(document.getElementById('downloadToast'));
+            
+            generateBtn.addEventListener('click', generateJson);
+            copyBtn.addEventListener('click', copyJson);
+            downloadAllBtn.addEventListener('click', downloadAllFiles);
+            
+            // Generate JSON saat halaman dimuat
+            generateJson();
+            
+            function generateJson() {
+                const frameCount = parseInt(frameCountInput.value);
+                const duration = parseFloat(durationInput.value);
+                const imagePrefix = imagePrefixInput.value;
+                const imagePath = imagePathInput.value;
+                const animationType = animationTypeSelect.value;
+                const easingType = easingTypeSelect.value;
+                const namespace = namespaceInput.value;
+                const loopAnimation = loopAnimationCheck.checked;
+                
+                // Generate controls array
+                const controls = [];
+                for (let i = 2; i <= frameCount + 1; i++) {
+                    const imgNumber = i - 1;
+                    controls.push({
+                        [`i${i}@${namespace}.img`]: {
+                            "$img": `${imagePrefix}${imgNumber}`
+                        }
+                    });
+                }
+                
+                // Generate animations
+                const animations = {};
+                for (let i = 1; i <= frameCount; i++) {
+                    const paddedIndex = String(i).padStart(2, '0');
+                    const offsetValue = (i - 1) * 100;
+                    
+                    animations[`${paddedIndex}@${namespace}.anim_base`] = {
+                        "$anm_offset": [
+                            0,
+                            `-${offsetValue}%`
+                        ],
+                        "next": loopAnimation ? 
+                            (i < frameCount ? `@${namespace}.${String(i + 1).padStart(2, '0')}` : `@${namespace}.01`) : 
+                            null
+                    };
+                    
+                    // Remove "next" property for the last frame if not looping
+                    if (i === frameCount && !loopAnimation) {
+                        delete animations[`${paddedIndex}@${namespace}.anim_base`].next;
+                    }
+                }
+                
+                // Build the complete JSON object
+                const jsonTemplate = {
+                    "anim_base": {
+                        "anim_type": animationType,
+                        "easing": easingType,
+                        "duration": "$duration_per_frame",
+                        "activated": true,
+                        "from": "$anm_offset",
+                        "to": "$anm_offset"
+                    },
+                    "img": {
+                        "type": "image",
+                        "fill": true,
+                        "bilinear": true,
+                        "size": [
+                            "100%",
+                            "100%"
+                        ],
+                        "texture": `('${imagePath}' + $img )`
+                    },
+                    "bg_anim": {
+                        "type": "stack_panel",
+                        "size": [
+                            "100%",
+                            "100%"
+                        ],
+                        "anchor_from": "top_left",
+                        "anchor_to": "top_left",
+                        "offset": `@${namespace}.01`,
+                        "$duration_per_frame|default": duration,
+                        "controls": controls
+                    },
+                    "namespace": namespace
+                };
+                
+                // Add animations to the template
+                Object.assign(jsonTemplate, animations);
+                
+                // Convert to JSON string with formatting
+                const jsonString = JSON.stringify(jsonTemplate, null, 2);
+                jsonOutput.textContent = jsonString;
+                
+                // Generate preview
+                generatePreview(frameCount, imagePrefix);
+            }
+            
+            function generatePreview(frameCount, imagePrefix) {
+                previewContainer.innerHTML = '';
+                
+                const previewTitle = document.createElement('div');
+                previewTitle.className = 'w-100 mb-2';
+                previewTitle.innerHTML = '<strong>Preview Frame:</strong>';
+                previewContainer.appendChild(previewTitle);
+                
+                for (let i = 1; i <= frameCount; i++) {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.textContent = `${imagePrefix}${i}`;
+                    previewContainer.appendChild(previewItem);
+                }
+            }
+            
+            function copyJson() {
+                const textToCopy = jsonOutput.textContent;
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => {
+                        alert('JSON berhasil disalin ke clipboard!');
+                    })
+                    .catch(err => {
+                        console.error('Gagal menyalin JSON: ', err);
+                        alert('Gagal menyalin JSON. Silakan salin secara manual.');
+                    });
+            }
+            
+            function downloadAllFiles() {
+                const namespace = namespaceInput.value;
+                const packName = packNameInput.value;
+                const packVersion = packVersionInput.value;
+                const imagePath = imagePathInput.value;
+                const imagePrefix = imagePrefixInput.value;
+                const frameCount = parseInt(frameCountInput.value);
+                
+                // Create a new ZIP file
+                const zip = new JSZip();
+                
+                // Add manifest.json
+                const manifestJson = {
+                    "format_version": 2,
+                    "header": {
+                        "description": packName,
+                        "name": packName,
+                        "uuid": generateUUID(),
+                        "version": [1, 0, 0],
+                        "min_engine_version": [1, 16, 0]
+                    },
+                    "modules": [
+                        {
+                            "description": packName,
+                            "type": "resources",
+                            "uuid": generateUUID(),
+                            "version": [1, 0, 0]
+                        }
+                    ]
+                };
+                
+                // Parse version string
+                const versionParts = packVersion.split('.').map(part => parseInt(part) || 0);
+                if (versionParts.length >= 3) {
+                    manifestJson.header.version = versionParts.slice(0, 3);
+                    manifestJson.modules[0].version = versionParts.slice(0, 3);
+                }
+                
+                zip.file("manifest.json", JSON.stringify(manifestJson, null, 2));
+                
+                // Create UI folder
+                const uiFolder = zip.folder("ui");
+                
+                // Add the main animation JSON as background.json
+                const mainJsonText = jsonOutput.textContent;
+                uiFolder.file("background.json", mainJsonText);
+                
+                // Generate and add _ui_defs.json
+                const uiDefsJson = {
+                    "ui_defs": [
+                        "ui/background.json"
+                    ]
+                };
+                uiFolder.file("_ui_defs.json", JSON.stringify(uiDefsJson, null, 2));
+                
+                // Generate and add start_screen.json
+                const startScreenJson = {
+                    "start_screen": {
+                        "$screen_bg_content": `${namespace}.bg_anim`
+                    },
+                    "start_screen_content": {
+                        "type": "panel",
+                        "$achievements_ignored|default": false,
+                        "$feedback_ignored|default": false,
+                        "$store_ignored|default": false,
+                        "variables": [
+                            {
+                                "requires": "$education_edition",
+                                "$achievements_ignored": true,
+                                "$store_ignored|default": true
+                            },
+                            {
+                                "requires": "$gear_vr",
+                                "$feedback_ignored": true
+                            },
+                            {
+                                "requires": "$fire_tv",
+                                "$feedback_ignored": true
+                            },
+                            {
+                                "requires": "$nx_os",
+                                "$feedback_ignored": true
+                            },
+                            {
+                                "requires": "(not $supports_xbl_achievements)",
+                                "$achievements_ignored": true,
+                                "$feedback_ignored": true
+                            },
+                            {
+                                "requires": "$trial",
+                                "$achievements_ignored": true
+                            }
+                        ],
+                        "bindings": [
+                            {
+                                "binding_name": "(not #screen_needs_rebuild)",
+                                "binding_name_override": "#visible"
+                            }
+                        ],
+                        "controls": [
+                            {
+                                "main_buttons_and_title_panel@start.main_buttons_stack_panel": {}
+                            },
+                            {
+                                "online_button_stack": {
+                                    "type": "stack_panel",
+                                    "orientation": "vertical",
+                                    "anchor_to": "bottom_left",
+                                    "anchor_from": "bottom_left",
+                                    "size": [
+                                        "50% - 75px",
+                                        "100%c"
+                                    ],
+                                    "offset": [
+                                        0,
+                                        "-10%"
+                                    ],
+                                    "variables": [
+                                        {
+                                            "requires": "($showing_new_player_flow_buttons)",
+                                            "$anim_type": "@start.anim_main_buttons_panel_alpha"
+                                        },
+                                        {
+                                            "requires": "(not $showing_new_player_flow_buttons)",
+                                            "$anim_type": 1.0
+                                        }
+                                    ],
+                                    "alpha": "$anim_type",
+                                    "controls": [
+                                        {
+                                            "gathering_panel@start.gathering_panel": {}
+                                        },
+                                        {
+                                            "upper_online_buttons_panel@start.upper_online_buttons_panel": {}
+                                        },
+                                        {
+                                            "lower_online_buttons_panel@start.lower_online_buttons_panel": {}
+                                        }
+                                    ],
+                                    "bindings": [
+                                        {
+                                            "binding_name": "#online_stack_visible",
+                                            "binding_name_override": "#visible"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "skin_panel@start.skin_panel": {
+                                    "layer": 1
+                                }
+                            },
+                            {
+                                "text_panel@start.text_panel": {}
+                            },
+                            {
+                                "popup_dialog_factory": {
+                                    "type": "factory",
+                                    "control_ids": {
+                                        "cloud_upload_prompt": "@start.cloud_upload_prompt"
+                                    }
+                                }
+                            },
+                            {
+                                "friendsdrawer_button_panel@start.friendsdrawer_button_panel": {
+                                    "$focus_id": "friendsdrawer_button",
+                                    "bindings": [
+                                        {
+                                            "binding_name": "#friends_drawer_button_enabled",
+                                            "binding_name_override": "#visible"
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                };
+                uiFolder.file("start_screen.json", JSON.stringify(startScreenJson, null, 2));
+                
+                // Generate and add settings_common.json
+                const settingsCommonJson = {
+                    "settings_content/background": {
+                        "alpha": 0
+                    },
+                    "dynamic_dialog_screen": {
+                        "variables": [
+                            {
+                                "requires": "(not $is_pregame)",
+                                "$screen_bg_content": false
+                            },
+                            {
+                                "requires": "$is_pregame",
+                                "$screen_bg_content": `${namespace}.bg_anim`
+                            }
+                        ],
+                        "$background_animations": []
+                    }
+                };
+                uiFolder.file("settings_common.json", JSON.stringify(settingsCommonJson, null, 2));
+                
+                // Generate and add progress_screen.json
+                const progressScreenJson = {
+                    "namespace": "progress",
+                    "world_saving_progress_screen": {
+                        "$screen_bg_content": `${namespace}.bg_anim`,
+                        "$background_animations": []
+                    },
+                    "world_loading_progress_screen": {
+                        "$screen_bg_content": `${namespace}.bg_anim`,
+                        "$background_animations": []
+                    },
+                    "overworld_loading_background@world_loading_screen_background": {
+                        "texture": "textures/ui/background_overworld",
+                        "layer": -100
+                    },
+                    "nether_loading_background@world_loading_screen_background": {
+                        "texture": "textures/ui/background_nether",
+                        "layer": -100
+                    },
+                    "theend_loading_background@world_loading_screen_background": {
+                        "texture": "textures/ui/background_theend",
+                        "layer": -100
+                    }
+                };
+                uiFolder.file("progress_screen.json", JSON.stringify(progressScreenJson, null, 2));
+                
+                // Generate and add world_templates_screen.json
+                const worldTemplatesJson = {
+                    "world_templates_screen": {
+                        "$screen_bg_content": `${namespace}.bg_anim`,
+                        "$background_animations": []
+                    }
+                };
+                uiFolder.file("world_templates_screen.json", JSON.stringify(worldTemplatesJson, null, 2));
+                
+                // Create assets folder structure based on imagePath
+                if (imagePath && imagePath.trim() !== '') {
+                    // Remove leading and trailing slashes
+                    const cleanPath = imagePath.replace(/^\/|\/$/g, '');
+                    const pathParts = cleanPath.split('/');
+                    
+                    // Create nested folders
+                    let currentFolder = zip;
+                    for (const part of pathParts) {
+                        if (part && part.trim() !== '') {
+                            currentFolder = currentFolder.folder(part);
+                        }
+                    }
+                    
+                    // Add placeholder files for each frame
+                    for (let i = 1; i <= frameCount; i++) {
+                        const placeholderContent = `// Placeholder for ${imagePrefix}${i}\n// Add your image file here`;
+                        currentFolder.file(`${imagePrefix}${i}`, placeholderContent);
+                    }
+                }
+                
+                // Generate the ZIP file and download it
+                zip.generateAsync({type: "blob"})
+                    .then(function(content) {
+                        saveAs(content, "ancxliy.zip");
+                        downloadToast.show();
+                    });
+            }
+            
+            // Helper function to generate UUID
+            function generateUUID() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+        });
+    </script>
+</body>
+  </html>
